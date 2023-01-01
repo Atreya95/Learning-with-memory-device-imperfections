@@ -51,13 +51,13 @@ kwargs = {'num_workers': 1, 'pin_memory': True}
 
 
 train_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('./mnist_dataset', train=True, download=True,
+    datasets.MNIST('./cifar10_dataset', train=True, download=True,
                    transform=transforms.Compose([
                        transforms.ToTensor()])),
     batch_size = 1000, shuffle = True)
 
 test_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('./mnist_dataset', train = False, transform = transforms.Compose([
+    datasets.MNIST('./cifar10_dataset', train = False, transform = transforms.Compose([
                        transforms.ToTensor()])),
     batch_size = 1000, shuffle = True)
 
