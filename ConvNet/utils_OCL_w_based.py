@@ -54,9 +54,11 @@ def pink_noise(hold_array, npulses, pole, b_tensor):
     pulses_number = torch.unique(npulses).type(torch.int).tolist()
 
     for p in pulses_number:
-        expanded[npulses==p] = torch.roll(expanded[npulses==p], p, -1)    
+        expanded[npulses==p] = torch.roll(expanded[npulses==p], p, -1)
+    
     
     hold_array_new = expanded.index_select(dim=-1, index=torch.arange(0, hold_array.shape[-1], device=device_selected))
+
     
     out = torch.sum(hold_array_new * b_tensor[0,:pole], -1)
        
@@ -88,16 +90,16 @@ def w_based_reset_model(M_tensor, npulses, R0, all_Tn, pole, alpha, b_tensor, am
     hold_array = M_tensor.index_select(dim=-1, index=torch.arange(start=0, end=pole, device=device_selected))
     t = M_tensor.index_select(dim=-1, index=torch.tensor(pole+1, device=device_selected)).squeeze()
     
-    #new_state = RTN(state_RTN=state_RTN, npulses=npulses, all_Tn=all_Tn, amp=amp)
-    #w_RTN = new_state
-    #w_noise, hold_array = pink_noise(hold_array=hold_array, npulses=npulses, pole=pole, b_tensor=b_tensor)
-    #w_noise = w_noise * alpha
+    new_state = RTN(state_RTN=state_RTN, npulses=npulses, all_Tn=all_Tn, amp=amp)
+    w_RTN = new_state
+    w_noise, hold_array = pink_noise(hold_array=hold_array, npulses=npulses, pole=pole, b_tensor=b_tensor)
+    w_noise = w_noise * alpha
     w_mean, t = mean_w(t=t, npulses=npulses, m1_all=m1_all, t_star_all=t_star_all, c1_all=c1_all, m2_all=m2_all)
-    #del state_RTN
-    w = w_mean  #+ w_RTN + w_noise
+    del state_RTN
+    w = w_mean  + w_RTN + w_noise
     
     Rnext = R0 * torch.exp(w)
-    #state_RTN = new_state
+    state_RTN = new_state
 
     M_tensor = torch.cat((state_RTN.unsqueeze(-1), hold_array, t.unsqueeze(-1)), dim=-1)     
 
@@ -298,13 +300,13 @@ class Adam_with_OCL_w_based(torch.optim.Optimizer):
                     R0_tensor_BL = torch.tensor(scipy.stats.norm.ppf(u_R0_BL, m_R0, s_R0), device=device_selected, requires_grad=False).view(p.data.shape)
                     R0_tensor_BLb = torch.tensor(scipy.stats.norm.ppf(u_R0_BLb, m_R0, s_R0), device=device_selected, requires_grad=False).view(p.data.shape)
                     
+                    
                     state['R0_BL'] =  R0_tensor_BL
                     state['R0_BLb'] = R0_tensor_BLb
                     state['RBL'] = state['R0_BL'].view(p.data.size())
                     state['RBLb'] = state['R0_BLb'].view(p.data.size())
 
                     
-                    #print(grad.type())
                     # State initialization
                 
                     state['step'] = 0
@@ -358,14 +360,14 @@ class Adam_with_OCL_w_based(torch.optim.Optimizer):
                     # Convert the update value to number of pulses (to be applied) between -126 and 126
                     npulses = torch.round(torch.clamp(update, -(pole-1.), (pole-1.)))
                     #if (state['step'] % 300 == 0):
-                    #print(torch.min(torch.abs(npulses.type(torch.float))).item(), torch.max(npulses).item(), torch.mean(torch.abs(npulses.type(torch.float))).item(), torch.std(torch.abs(npulses.type(torch.float))).item())
+
                     
                     # Get the previous binary weights so that they can be compared for the sign chance
                     old_Bi_W = torch.sign(state['RBL'] - state['RBLb'])
                     
                     # Apply pulses to the corresponding device
                     zero = torch.zeros_like(npulses)
-                    #print(p.data.size(), state['M_tensor_BL'].size())
+
                     RBL_reset, M_tensor_BL_reset = w_based_reset_model(state['M_tensor_BL'], npulses=torch.where(npulses>0, torch.abs(npulses), zero), R0=state['R0_BL'], all_Tn=state['all_Tn'], pole=state['pole'], alpha=state['alpha'], b_tensor=state['b_tensor'], amp=state['amp_BL'], m1_all=state['m1_all_BL'], t_star_all=state['t_star_all_BL'], c1_all=state['c1_all_BL'], m2_all=state['m2_all_BL'])
                     RBLb_reset, M_tensor_BLb_reset = w_based_reset_model(state['M_tensor_BLb'], npulses=torch.where(npulses<=0, torch.abs(npulses), zero), R0=state['R0_BLb'], all_Tn=state['all_Tn'], pole=state['pole'], alpha=state['alpha'], b_tensor=state['b_tensor'], amp=state['amp_BLb'], m1_all=state['m1_all_BLb'], t_star_all=state['t_star_all_BLb'], c1_all=state['c1_all_BLb'], m2_all=state['m2_all_BLb'])
                     
@@ -375,32 +377,12 @@ class Adam_with_OCL_w_based(torch.optim.Optimizer):
                     # Get the new binary weights so that they can be compared for the sign chance
                     new_Bi_W = torch.sign(RBL_reset - RBLb_reset)  
                     set_pulses = (torch.ones_like(npulses)).clamp(0, (pole-1.))
-                    #print(npulses.dtype, set_pulses.dtype)
                     
-                    #After SET, making the new set of resistances
-                    #m_R0, s_R0 = 6988, 381.7
-                    #low_R0 = scipy.stats.norm.cdf(6252, m_R0, s_R0) #F(a)
-                    #high_R0 = scipy.stats.norm.cdf(7897, m_R0, s_R0) #F(b)
-                    #u_R0_BL = scipy.stats.uniform.rvs(loc=low_R0, scale=high_R0-low_R0, size=p.data.numel())
-                    #u_R0_BLb = scipy.stats.uniform.rvs(loc=low_R0, scale=high_R0-low_R0, size=p.data.numel())
-                    
-                    #state['R0_BL_new'] = torch.tensor(scipy.stats.norm.ppf(u_R0_BL, m_R0, s_R0), device=device_selected).view(p.data.shape)
-                    #state['R0_BLb_new'] = torch.tensor(scipy.stats.norm.ppf(u_R0_BLb, m_R0, s_R0), device=device_selected).view(p.data.shape)
-
-
-                    #RBL_set, M_tensor_BL_set = w_based_reset_model(M_tensor=torch.zeros_like(state['M_tensor_BL']), npulses=torch.where(npulses>0, set_pulses, zero), R0=state['R0_BL'], all_Tn=state['all_Tn'], pole=state['pole'], alpha=state['alpha'], b_tensor=state['b_tensor'], amp=state['amp_BL'], m1_all=state['m1_all_BL'], t_star_all=state['t_star_all_BL'], c1_all=state['c1_all_BL'], m2_all=state['m2_all_BL'])
-                    #RBLb_set, M_tensor_BLb_set = w_based_reset_model(M_tensor=torch.zeros_like(state['M_tensor_BLb']), npulses=torch.where(npulses<=0, set_pulses, zero), R0=state['R0_BLb'], all_Tn=state['all_Tn'], pole=state['pole'], alpha=state['alpha'], b_tensor=state['b_tensor'], amp=state['amp_BLb'], m1_all=state['m1_all_BLb'], t_star_all=state['t_star_all_BLb'], c1_all=state['c1_all_BLb'], m2_all=state['m2_all_BLb'])
-                                  
-                    
-                    #RBL_set = RBL_set.view(p.data.size())
-                    #RBLb_set = RBLb_set.view(p.data.size())
-
-
+                   
                     old_Bi_W = old_Bi_W.unsqueeze(-1)
                     new_Bi_W = new_Bi_W.unsqueeze(-1)
 
                                        
-                    #print(old_Bi_W.size(), state['M_tensor_BL_reset'].size(), state['M_tensor_BL_set'].size())
                     state['M_tensor_BL'] = torch.where(old_Bi_W == new_Bi_W, M_tensor_BL_reset, M_tensor_BL_reset)
                     state['M_tensor_BLb'] = torch.where(old_Bi_W == new_Bi_W, M_tensor_BLb_reset, M_tensor_BLb_reset)
 
@@ -412,10 +394,5 @@ class Adam_with_OCL_w_based(torch.optim.Optimizer):
 
                     p.data = torch.sign(state['RBL'] - state['RBLb'])
                     
-                    # Update the latent weight
-                    #state['m'] = torch.log10(torch.div(state['RBL_reset'], state['RBLb_reset']))
-                    #print(state['RBL'][0])
-                    #print(npulses[0, 0])
-        
         
         return loss
