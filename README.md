@@ -7,7 +7,7 @@ To set the environment run in your conda main environment:
 conda config --add channels conda-forge  
 conda create --name environment_name  
 conda activate environment_name  
-conda install pytorch==1.1.0 torchvision==0.3.0 -c pytorch
+conda install python=3.7 pytorch=1.4 torchvision cudatoolkit
 ```
 
 ## Fully connected architecture for the MNIST task with all device simulations
