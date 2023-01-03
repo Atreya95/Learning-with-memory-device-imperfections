@@ -109,7 +109,7 @@ def w_based_reset_model(M_tensor, npulses, R0, all_Tn, pole, alpha, b_tensor, am
 
 
 
-class Adam_with_OCL_w_based(torch.optim.Optimizer):
+class Adam_with_device(torch.optim.Optimizer):
      
     r"""Implements Adam algorithm.
 
@@ -148,12 +148,12 @@ class Adam_with_OCL_w_based(torch.optim.Optimizer):
             raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
         defaults = dict(lr=lr, betas=betas, eps=eps,
                         weight_decay=weight_decay, amsgrad=amsgrad)
-        super(Adam_with_OCL_w_based, self).__init__(params, defaults)
+        super(Adam_with_device, self).__init__(params, defaults)
     
     
 
     def __setstate__(self, state):
-        super(Adam_with_OCL_w_based, self).__setstate__(state)
+        super(Adam_with_device, self).__setstate__(state)
         for group in self.param_groups:
             group.setdefault('amsgrad', False)
     
