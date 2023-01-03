@@ -14,7 +14,7 @@ import socket
 hostname = socket.gethostname()
 
 from VGG_Cifar10 import *
-from utils_OCL_w_based import *
+from utils_device import *
 from utils import *
 
 
@@ -57,10 +57,10 @@ transform_test = transforms.Compose([
     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 ])
 
-testset = torchvision.datasets.CIFAR10(root='/home/atreya/CNN/data', train=False, download=True, transform=transform_test)
+testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
 testloader = torch.utils.data.DataLoader(testset, batch_size=200, shuffle=False)
 
-trainset = torchvision.datasets.CIFAR10(root='/home/atreya/CNN/data', train=True, download=True, transform=transform_train)
+trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True)
 trainloader_tested = torch.utils.data.DataLoader(trainset, batch_size=200, shuffle=True)
 
@@ -92,15 +92,15 @@ net = net.to(device)
 if args.resume:
     # Load checkpoint.
     print('==> Resuming from checkpoint..')
-    assert os.path.isdir('/home/atreya/Documents/checkpoint'), 'Error: no checkpoint directory found!'
-    checkpoint = torch.load('/home/atreya/Documents/checkpoint/ckpt.pth')
+    assert os.path.isdir('./checkpoint'), 'Error: no checkpoint directory found!'
+    checkpoint = torch.load('./checkpoint/ckpt.pth')
     net.load_state_dict(checkpoint['net'])
     best_acc = checkpoint['acc']
     start_epoch = checkpoint['epoch']
 
 
 criterion = nn.CrossEntropyLoss()
-optimizer = Adam_with_OCL_w_based(net.parameters(), lr=args.lr)
+optimizer = Adam_with_device(net.parameters(), lr=args.lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_decay, gamma=args.lr_decay_gamma)
 #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=4, eta_min=1, last_epoch=-1)
 
@@ -192,7 +192,7 @@ def test(epoch):
         }
         if not os.path.isdir('checkpoint'):
             os.mkdir('checkpoint')
-        torch.save(state, '/home/atreya/Documents/checkpoint/ckpt.pth')
+        torch.save(state, './checkpoint/ckpt.pth')
         best_acc = acc_test
 
 
