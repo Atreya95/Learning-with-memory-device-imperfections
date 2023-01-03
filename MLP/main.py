@@ -13,7 +13,7 @@ import sys
 import os
 os.environ['CUDA_LAUNCH_BLOCKING']="1"
 
-from utils_OCL_w_based import *
+from utils import *
 
 import socket
 hostname = socket.gethostname()
@@ -94,7 +94,7 @@ if args.gpus != 'None' :
 model = model.to(device)
 
 criterion = nn.CrossEntropyLoss()
-optimizer = Adam_with_OCL_w_based(model.parameters(), lr=args.lr)
+optimizer = Adam_with_device(model.parameters(), lr=args.lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.5)
 
 def train(epoch):
@@ -156,4 +156,4 @@ for epoch in range(1, args.epochs + 1):
     scheduler.step()
 
 
-np.savetxt("BNN_with_device_no_noise_sim_test_accuracy_pole_15_3000_hidden_neu_lr_8_lr_decay_7_gamma_0.5_with_bs_1000_without_reprog_strategy.txt", test_accuracy)
+np.savetxt("BNN_with_device_simulation_test_accuracy.txt", test_accuracy)
